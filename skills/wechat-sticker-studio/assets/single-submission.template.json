@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "type": "single",
+  "stickers": [
+    {"path": "sticker.gif", "sha256": "填入成品 GIF 的 SHA-256", "meaning": "你好"}
+  ],
+  "tags": ["填入计划在后台选用的标签"]
+}

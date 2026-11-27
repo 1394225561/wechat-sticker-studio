@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "type": "album",
+  "name": "专辑名称",
+  "description": "填写专辑介绍",
+  "copyright": "填写设计署名",
+  "stickers": [
+    {"path": "gif/01.gif", "sha256": "填入成品 GIF 的 SHA-256，再按投稿顺序追加到 8–24 项", "meaning": "你好"}
+  ],
+  "assets": {
+    "banner": {"path": "banner.jpg", "sha256": "填入横幅的 SHA-256"},
+    "cover": {"path": "cover.png", "sha256": "填入封面的 SHA-256"},
+    "icon": {"path": "icon.png", "sha256": "填入图标的 SHA-256"}
+  },
+  "appreciation": {"enabled": false}
+}

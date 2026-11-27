@@ -1,0 +1,1 @@
+../skills/wechat-sticker-studio/scripts/sticker_gif.py

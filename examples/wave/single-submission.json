@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "type": "single",
+  "stickers": [
+    {
+      "path": "../../output/phase-a/wave.gif",
+      "sha256": "2ffdfcb427035edf15977b7e524c663212e46d09696e00630b009fa374503b0a",
+      "meaning": "你好",
+      "durations_ms": [80, 80, 80, 80, 240, 80, 80, 80, 80, 80, 80, 80]
+    }
+  ],
+  "tags": ["问候"]
+}

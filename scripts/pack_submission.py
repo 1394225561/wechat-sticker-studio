@@ -1,0 +1,1 @@
+../skills/wechat-sticker-studio/scripts/pack_submission.py

@@ -1,0 +1,1 @@
+-r skills/wechat-sticker-studio/requirements.txt
