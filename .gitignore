@@ -1,0 +1,46 @@
+# Operating systems and editors
+.DS_Store
+.AppleDouble
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and local configuration
+*.log
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python environments, caches and build products
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# JavaScript dependencies and caches
+node_modules/
+.next/
+.nuxt/
+.cache/
+coverage/
+
+# Local workflow output and private handoff documents
+/.runtime/
+/output/
+/docs/
