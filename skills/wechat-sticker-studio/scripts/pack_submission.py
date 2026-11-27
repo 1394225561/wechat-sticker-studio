@@ -13,7 +13,7 @@ from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
 from PIL import Image, ImageSequence
 
-from sticker_gif import FRAME_COUNT, MAX_BYTES, inspect_gif
+from sticker_gif import MAX_BYTES, MIN_FRAME_COUNT, inspect_gif
 
 SNAPSHOT_DATE = "2026-10-28"
 ARTWORK = {
@@ -192,13 +192,20 @@ def preflight(manifest, report):
         meanings.setdefault(meaning, index)
         try:
             path, digest, content = read_asset(ref, manifest.parent, MAX_BYTES)
+            frame_count = ref.get("frame_count")
+            if "frame_count" in ref and (type(frame_count) is not int or frame_count < MIN_FRAME_COUNT):
+                raise ValueError(f"frame_count must be an integer of at least {MIN_FRAME_COUNT}")
             delays = ref.get("durations_ms")
             if delays is not None and (
-                not isinstance(delays, list) or len(delays) != FRAME_COUNT
+                not isinstance(delays, list) or len(delays) < MIN_FRAME_COUNT
                 or any(type(delay) is not int or delay < 10 or delay > 655350 or delay % 10 for delay in delays)
             ):
-                raise ValueError("durations_ms must list 12 valid GIF frame delays in milliseconds")
-            result, _ = inspect_gif(path, delays, data=content)
+                raise ValueError(
+                    f"durations_ms must list at least {MIN_FRAME_COUNT} valid GIF frame delays in milliseconds"
+                )
+            if frame_count is not None and delays is not None and len(delays) != frame_count:
+                raise ValueError(f"durations_ms must match frame_count ({frame_count})")
+            result, _ = inspect_gif(path, delays, expected_frame_count=frame_count, data=content)
         except (OSError, ValueError) as exc:
             error(label, exc, ref)
             continue
@@ -210,13 +217,15 @@ def preflight(manifest, report):
         name = f"表情图/{index:02}.gif"
         entries[name] = content
         portable_ref = {"path": name, "sha256": digest, "meaning": meaning}
+        if frame_count is not None:
+            portable_ref["frame_count"] = frame_count
         if delays is not None:
             portable_ref["durations_ms"] = delays
         portable["stickers"].append(portable_ref)
         report["stickers"].append({
             "number": index, "meaning": meaning, "archive_path": name,
-            **{key: result[key] for key in ("sha256", "width", "height", "frame_count", "loop_count",
-                                            "size_bytes", "durations_ms", "checks")},
+            **{key: result[key] for key in ("sha256", "width", "height", "frame_count", "expected_frame_count",
+                                            "loop_count", "size_bytes", "durations_ms", "checks")},
             "path": ref["path"],
         })
     return portable, entries

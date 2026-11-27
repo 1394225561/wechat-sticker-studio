@@ -1,96 +1,83 @@
 # WeChat Sticker Studio
 
-将角色动作或编号 PNG 制作为透明、循环的微信 GIF 表情，支持本机解码验收和深浅底预览。示例「挥手机器人」由 [绘图脚本](examples/wave/draw_frames.py) 原创绘制，12 张 PNG 随仓库提供，未使用私有角色或第三方素材。
+把一组 PNG 做成透明、循环的微信 GIF 表情。你可以给角色画一组动作、请 Agent 制作画稿，或检查一枚已有的 GIF。成品可以在深色和浅色背景上一起预览，也可以按需整理成微信表情投稿材料。
 
-## 在 Agent 中使用
+![随包小样「挥手机器人」的一张动作帧](examples/wave/frames/05.png)
 
-将 [wechat-sticker-studio Skill 文件夹](skills/wechat-sticker-studio) 整体复制到作品项目。Codex 使用项目中的 `.agents/skills/wechat-sticker-studio/`，Claude Code 使用 `.claude/skills/wechat-sticker-studio/`，DeepSeek Harness 使用 Git 项目根目录中的 `.dsh/skills/wechat-sticker-studio/`。开启该项目的新会话，指定使用 `wechat-sticker-studio`，并提供角色加动作或按顺序编号的 PNG。
+## 先做一枚挥手机器人
 
-已备好透明 PNG 时，可以直接在作品目录执行 [导入与导出命令](skills/wechat-sticker-studio/references/png-workflow.md)。Skill 文件夹自带工具及 [清单模板](skills/wechat-sticker-studio/assets/sticker.template.json)，指向装有锁定 Pillow 的现有 Python 即可从其他目录运行。
+在 GitHub 仓库点 **Code → Download ZIP**，解压后在终端进入包含本 README 的文件夹。随包有 12 张原创 PNG，直接用它们就能跑完流程。如果下载了指定版本的源码包或 Skill 包，请按包内的 README 或 `QUICKSTART.md` 操作。 [项目发布页](https://github.com/1394225561/wechat-sticker-studio/releases)
 
-已在 Apple Silicon macOS 上验证 Codex 的角色参考转 GIF 流程，以及 Claude Code 2.1.330 和 DeepSeek Harness 的 PNG 导入流程。
+本机制作、预览和打包需要 **Python 3.12** 和 **Pillow 13.0.0**。下方的命令会创建项目自己的 `.venv` 并安装 Pillow。普通使用只需要这两项运行依赖，已有 PNG 时可以全程在本机处理。
 
-## 快速开始
+- 已安装 Python 3.12 时，直接运行下面的命令。需要安装时，可通过 uv 获取 3.12 系列的补丁版本。按官方说明装好 uv 后运行 `uv python install 3.12`。也可查看 Python 官方下载页的对应平台安装方式。 [uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/) · [Python 官方下载](https://www.python.org/downloads/)
+- Pillow 由 `pip` 按项目的依赖清单安装，首次下载需要网络。 [锁定依赖](skills/wechat-sticker-studio/requirements.txt) · [Pillow 下载页](https://pypi.org/project/pillow/13.0.0/)
 
-下载源码包或克隆仓库后，从项目根目录执行。需要 Python 3.12 和 [锁定的 Pillow 13.0.0](requirements.txt)。已有兼容环境时，可以把 `py` 指向该环境的解释器。
+在 macOS 或 Linux 的终端运行下面的命令。
 
 ```sh
 python3.12 -m venv .venv
 py=.venv/bin/python
 "$py" -m pip install -r requirements.txt
-mkdir -p output/phase-a
-"$py" -B skills/wechat-sticker-studio/scripts/sticker_gif.py compose examples/wave/sticker.json output/phase-a/wave.gif \
-  > output/phase-a/wave-compose.json
-"$py" -B skills/wechat-sticker-studio/scripts/sticker_gif.py validate output/phase-a/wave.gif \
-  --manifest examples/wave/sticker.json --preview output/phase-a/wave-preview.gif \
-  > output/phase-a/wave-validation.json
+"$py" -B skills/wechat-sticker-studio/scripts/check_environment.py
+"$py" -B skills/wechat-sticker-studio/scripts/sticker_gif.py compose examples/wave/sticker.json output/phase-a/wave.gif
+"$py" -B skills/wechat-sticker-studio/scripts/sticker_gif.py validate output/phase-a/wave.gif --manifest examples/wave/sticker.json --preview output/phase-a/wave-preview.gif
 ```
 
-打开 `output/phase-a/wave-preview.gif` 查看两种背景上的同步循环。旁边的 `wave-preview-frames.png` 标出了每帧实际时长。成品为 `wave.gif`，第五帧停留 240 毫秒，其余 11 帧各 80 毫秒。
+在 Windows PowerShell 中可用下面的写法。若用 uv 安装了 Python，第一行可改用 `& (uv python find 3.12) -m venv .venv`。
 
-- `compose` 根据[清单](examples/wave/sticker.json)按顺序读取相对于清单的 PNG 路径。时长以毫秒计，必须是 10 的正整数倍。Alpha 小于等于阈值的像素变为透明。原始 PNG 可直接使用，也可通过 `"$py" -B examples/wave/draw_frames.py` 重新生成。
-- 重跑加 `--replace`，候选 GIF 通过解码检查后才替换已有成品。省略参数时已有同名文件会报错。要保留首跑报告，可将重跑输出重定向到 `output/phase-a/wave-rerun.json`。
-- `validate` 从 GIF 解码画布、帧数、时长、循环与透明像素，输出 JSON。用 `--manifest` 比对预期时长。省略清单时，时长一致性记为 `null`。严格检查失败退出码为 1，解码成功的文件仍会报告实际指标与失败原因。
+```powershell
+py -3.12 -m venv .venv
+$python = '.\.venv\Scripts\python.exe'
+& $python -m pip install -r requirements.txt
+& $python -B skills/wechat-sticker-studio/scripts/check_environment.py
+& $python -B skills/wechat-sticker-studio/scripts/sticker_gif.py compose examples/wave/sticker.json output/phase-a/wave.gif
+& $python -B skills/wechat-sticker-studio/scripts/sticker_gif.py validate output/phase-a/wave.gif --manifest examples/wave/sticker.json --preview output/phase-a/wave-preview.gif
+```
 
-运行本机回归检查。
+打开 `output/phase-a/wave-preview.gif` 看深浅底循环。同一文件夹里的 `wave.gif` 是可使用的透明成品，共 12 帧，尺寸为 240 × 240。`wave-preview-frames.png` 标出每帧的实际时长。
+
+自检输出 `"ok": true` 时，当前解释器和 Pillow 符合项目的环境要求。如果第一个命令提示找不到 Python，请先安装 3.12。Linux 上若创建虚拟环境时报 `ensurepip is not available`，可从系统软件源安装与 Python 3.12 对应的 `venv` 包，或使用 uv 提供的解释器。如果自检提示缺少 Pillow 或版本不同，用同一个 `.venv` 解释器重跑 `pip install` 那一步。
+
+新建成品时，请把输出放在本机支持硬链接的磁盘上，例如 APFS、ext4 或 NTFS。若成品同名已存在，可换一个文件名，或在确认要替换时为 `compose` 加 `--replace`。
+
+## 制作自己的表情
+
+- **我有一组 PNG。** 准备至少两张 240 × 240 的透明单帧 PNG，按播放顺序编号。让 Agent 导入，或自己按命令生成帧清单、合成并预览。 [PNG 导入与导出](skills/wechat-sticker-studio/references/png-workflow.md)
+- **我有角色和动作。** 给 Agent 一张角色参考图和要做的动作，例如「让这只机器人抬右手挥两下」。绘制需要 Agent 的图像工具或你自己的绘图工具，画稿准备好后再用本项目合成。 [角色与动作指南](skills/wechat-sticker-studio/references/character-motion.md)
+- **我有一枚 GIF。** 可以让 Agent 检查尺寸、帧数、循环、透明像素和文件大小，并生成深浅底预览。附上原帧清单时，还可核对预期时长。 [GIF 检查命令](skills/wechat-sticker-studio/references/png-workflow.md)
+- **我想提交到微信表情开放平台。** 可以在本机预检动态单品或专辑、生成投稿 ZIP 和填写说明。预检采用 **2026-10-28 的微信官方规则快照**，请在上传时核对平台当时的表单。 [投稿材料与组包](skills/wechat-sticker-studio/references/submission.md)
+
+可以按动作选择帧数，例如导入 24 张 PNG 时加 `--frame-count 24`，确认素材张数符合目标。省略该选项时，工具按实际输入张数生成帧清单。合成和清单验收都会核对实际解码帧数与清单是否一致。Docker 镜像仅用于维护者的生产编码对照。
+
+## 让 Agent 操作
+
+### 推荐用 `npx skills` 安装
+
+准备 Node.js 22.20 或更高版本（含 `npx`）和 Git。在你的**作品项目根目录**运行命令，按提示选择使用的 Agent。Skill 默认装到当前项目。 [Node.js 下载](https://nodejs.org/en/download) · [Skills 安装文档](https://github.com/vercel-labs/skills/blob/main/docs/commands.md#skills-add)
 
 ```sh
-"$py" -B -m unittest discover -s tests -v
+npx skills add 1394225561/wechat-sticker-studio --skill wechat-sticker-studio
 ```
 
-## 动态表情投稿包
+### 手动安装
 
-运行小样后，可用下面的命令生成单品示例 ZIP。省略 `--output` 可只做预检。
+如果安装器没有列出你的 Agent，可以把仓库里的 `wechat-sticker-studio` 文件夹整体复制到对应的目录。若下载的是独立 Skill 包，使用解压出的同名文件夹。 [仓库中的 Skill 文件夹](skills/wechat-sticker-studio)
 
-```sh
-mkdir -p output/phase-c
-"$py" -B scripts/pack_submission.py examples/wave/single-submission.json \
-  --output output/phase-c/机器人-单品示例.zip > output/phase-c/single-report.json
-```
-
-投稿工具按清单顺序编号，复核 GIF 与配图的 SHA-256，并生成填写说明。动态单品和专辑均按 **2026-10-28 微信官方快照**做本机预检，实际表单仍待复核。 [投稿清单、配图及规则](skills/wechat-sticker-studio/references/submission.md)
-
-## 版本与兼容性
-
-源码包包含可重跑的小样和测试。独立 Skill 包包含同一套脚本、小样和 `QUICKSTART.md`，解压后可直接按本页的 Agent 路径复制整个文件夹。更换版本时先保留旧 Skill 目录，整包替换后重开 Agent 会话。如需回退，恢复原目录并沿用该版本的锁定依赖。
-
-| 环境 | 已验证入口 |
+| Agent | 作品项目中的位置 |
 | --- | --- |
-| Apple Silicon macOS，Python 3.12.14 | 合成、逐帧解码、双底预览、投稿预检和组包 |
-| Codex | 宿主用参考图完成新角色表情 |
-| Claude Code 2.1.330 | 项目 Skill 的 PNG 导入 |
-| DeepSeek Harness | 项目 Skill 的 PNG 导入 |
+| Codex | `.agents/skills/wechat-sticker-studio/` |
+| Claude Code | `.claude/skills/wechat-sticker-studio/` |
+| DeepSeek Harness | Git 根目录下的 `.dsh/skills/wechat-sticker-studio/` |
 
-发布包含 [Apache-2.0 许可证](LICENSE)和[第三方声明](THIRD_PARTY_NOTICES.md)，涵盖项目代码、Skill 和原创机器人小样。
+### 开始制作
 
-## 维护者复测生产编码器
+在作品项目里打开新会话。首次运行需要 Python 3.12，可以让 Agent 按已安装 Skill 的 `requirements.txt` 在作品项目的 `.venv` 中安装 Pillow。可以直接给 Agent 下面这段话，并附上素材路径。已有虚拟环境时，一并提供其中 Python 的绝对路径。
 
-以下命令使用本机已缓存并核实的 `compose-gif-mcp-app:latest` 镜像 ID。镜像内为 `sprite-gen 3.15.0`，提交 `2e60c68b54c1008ee411c211f4dbe4dddcf55016`，Pillow 12.3.0。生产服务经由 `--frame-dir` 和一基序号 `--frame-order` 接入相同 CLI。这里将第 5 帧引用三次，观察成品是否合并为一帧并累加时长。容器离线运行，绑定的输入目录为只读。
+> 使用 wechat-sticker-studio。先检查运行环境，再把 `frames/` 里的 PNG 按编号做成透明、循环的微信 GIF。目标是实际解码 24 帧。请把成品、帧清单、验收报告和深浅底预览放在 `output/` 里。
 
-```sh
-(
-set -e
-baseline="$PWD/output/phase-a/baseline"
-image=sha256:4bfdd31f9c2b4b84e2d9efbf3e234331c6e2558ddee75ec44112645c374e64f4
-mkdir -p "$baseline/inputs" "$baseline/gifs"
-index=0
-for png in examples/wave/frames/*.png; do
-  cp "$png" "$baseline/inputs/frame-$index.png"
-  index=$((index + 1))
-done
-docker run --rm --pull=never --network=none --read-only --user "$(id -u):$(id -g)" \
-  --mount "type=bind,src=$baseline/inputs,dst=/frames,readonly" \
-  --mount "type=bind,src=$baseline/gifs,dst=/out" \
-  --entrypoint sprite-gen "$image" compose-gif \
-  --frame-dir /frames --frame-order 1,2,3,4,5,5,5,6,7,8,9,10,11,12 \
-  --delay-ticks 8 --loop-count 0 --alpha-threshold 128 \
-  --output /out/wave.gif --manifest-output /out/wave-sprite-gen.json
-"$py" -B scripts/sticker_gif.py validate "$baseline/gifs/wave.gif" \
-  --manifest examples/wave/sticker.json --preview "$baseline/wave-preview.gif" \
-  > "$baseline/wave-validation.json"
-"$py" -B scripts/compare_gifs.py output/phase-a/wave.gif "$baseline/gifs/wave.gif" \
-  > output/phase-a/comparison.json
-)
-```
+从零开始时，告诉 Agent 想要的角色和动作。配备生图工具的 Agent 可以先画角色参考图，再用同一参考画动作帧。项目目前依赖外部提供画稿，自带的工具负责把帧合成 GIF。让纯文本 Agent 调用用户自己的生图服务已列入开发计划。 [外接生图服务 TODO](README.developer.md#todo-接入用户自带的生图服务)
 
-本机合成和验收可独立运行，只有生产对照命令需要 Docker。
+本机流程已在 Apple Silicon macOS、Python 3.12.14 和 Pillow 13.0.0 上验证。Codex 已跑通从角色参考开始的流程，Claude Code 2.1.330 和 DeepSeek Harness 已跑通 PNG 导入。上面的 Linux 和 Windows 命令供对应平台试用。
+
+修改源码、跑测试、构建发布包或进行 Docker 编码对照，请看 [开发者 README](README.developer.md)。项目和原创小样采用 [Apache-2.0](LICENSE)。 [第三方声明](THIRD_PARTY_NOTICES.md)

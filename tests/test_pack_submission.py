@@ -133,12 +133,31 @@ class PackSubmissionTest(unittest.TestCase):
                          {"name", "stickers[1].meaning", "appreciation.message", "appreciation.guide"})
         self.assertFalse(self.output.exists())
 
-    def test_single_requires_tags_and_project_frame_count(self):
-        data = {"version": 1, "type": "single", "stickers": [self.sticker(1, frames_count=6)]}
+    def test_single_requires_tags_and_matches_requested_frame_count(self):
+        sticker = {**self.sticker(1, frames_count=6), "frame_count": 12}
+        data = {"version": 1, "type": "single", "stickers": [sticker]}
         result = self.cli(data, self.output, expected=1)
         self.assertTrue(any(issue["item"] == "tags" for issue in result["errors"]))
         self.assertIn("expected 12 frames, decoded 6", [issue["message"] for issue in result["errors"]])
         self.assertFalse(self.output.exists())
+
+    def test_single_packages_24_frames_and_keeps_frame_expectations(self):
+        sticker = self.sticker(1, frames_count=24)
+        data = {"version": 1, "type": "single", "tags": ["问候"], "stickers": [sticker]}
+        self.assertEqual(self.cli(data)["stickers"][0]["frame_count"], 24)
+        sticker["durations_ms"] = [80] * 24
+        self.assertEqual(self.cli(data)["stickers"][0]["expected_frame_count"], 24)
+        sticker["frame_count"] = 24
+        result = self.cli(data, self.output)
+        self.assertTrue(result["stickers"][0]["checks"]["matches_expected_frame_count"])
+        with ZipFile(self.output) as archive:
+            manifest = json.loads(archive.read("submission.json"))
+        self.assertEqual(manifest["stickers"][0]["frame_count"], 24)
+        self.assertEqual(manifest["stickers"][0]["durations_ms"], [80] * 24)
+
+        sticker["frame_count"] = 23
+        result = self.cli(data, expected=1)
+        self.assertIn("durations_ms must match frame_count", result["errors"][0]["message"])
 
 
 if __name__ == "__main__":

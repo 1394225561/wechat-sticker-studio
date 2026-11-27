@@ -14,7 +14,7 @@ SKILL_ROOT = PurePosixPath("skills") / PROJECT
 NOTICES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
 SKILL_FILES = (
     "SKILL.md", "requirements.txt",
-    "scripts/sticker_gif.py", "scripts/pack_submission.py",
+    "scripts/check_environment.py", "scripts/sticker_gif.py", "scripts/pack_submission.py",
     "references/character-motion.md", "references/png-workflow.md", "references/submission.md",
     "assets/sticker.template.json", "assets/single-submission.template.json",
     "assets/album-submission.template.json",
@@ -24,19 +24,22 @@ DEMO_FILES = (
     *(f"examples/wave/frames/{index:02}.png" for index in range(1, 13)),
 )
 SOURCE_FILES = (
-    ".gitignore", "README.md", "requirements.txt", *NOTICES,
+    ".gitignore", "README.md", "README.developer.md", "requirements.txt", *NOTICES,
     "scripts/sticker_gif.py", "scripts/pack_submission.py", "scripts/compare_gifs.py",
     "scripts/build_release.py", "tests/test_sticker_gif.py", "tests/test_pack_submission.py",
     *(str(SKILL_ROOT / name) for name in SKILL_FILES), *DEMO_FILES,
 )
 SKILL_QUICKSTART = r"""# 运行小样
 
-从本文件所在目录执行。使用 Python 3.12 和独立虚拟环境。
+从本文件所在目录执行。使用 Python 3.12 和独立虚拟环境。需要安装 Python 时，可先安装 uv，再运行 `uv python install 3.12`。Pillow 按随包依赖清单安装。 [uv 安装说明](https://docs.astral.sh/uv/getting-started/installation/) · [Python 官方下载](https://www.python.org/downloads/) · [Pillow 下载](https://pypi.org/project/pillow/13.0.0/)
+
+以下命令适用于 macOS 和 Linux。Windows PowerShell 中用 `py -3.12 -m venv .venv` 创建环境，跳过 `py=...` 与 `mkdir -p` 两行，并把后续的 `"$py"` 换成 `& .\.venv\Scripts\python.exe`。若通过 uv 安装 Python，第一步可用 `& (uv python find 3.12) -m venv .venv`。
 
 ```sh
 python3.12 -m venv .venv
 py=.venv/bin/python
 "$py" -m pip install -r requirements.txt
+"$py" -B scripts/check_environment.py
 mkdir -p output/phase-a output/phase-c
 "$py" -B scripts/sticker_gif.py compose examples/wave/sticker.json output/phase-a/wave.gif
 "$py" -B scripts/sticker_gif.py validate output/phase-a/wave.gif \
@@ -46,6 +49,8 @@ mkdir -p output/phase-a output/phase-c
 ```
 
 成品为透明、无限循环的 240 × 240 GIF，共 12 帧，含一次 240 毫秒停顿。
+制作自己的表情时，可以按动作选择帧数。 [PNG 导入与导出](references/png-workflow.md)
+自检输出 `"ok": true` 表示当前解释器及 Pillow 符合项目的环境要求。
 投稿预检使用 2026-10-28 保存的微信官方快照。
 
 将整个 `wechat-sticker-studio/` 文件夹放进作品项目对应的 Skill 目录。

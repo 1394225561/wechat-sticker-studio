@@ -1,4 +1,4 @@
-"""Compose and inspect transparent, 12-frame stickers."""
+"""Compose and inspect transparent animated stickers."""
 
 import argparse
 import hashlib
@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from PIL import Image, ImageChops, ImageDraw, ImageSequence, __version__ as pillow_version
 
 CANVAS = (240, 240)
-FRAME_COUNT = 12
+MIN_FRAME_COUNT = 2
 MAX_BYTES = 500_000
 
 
@@ -26,8 +26,8 @@ def read_manifest(path):
             raise ValueError("expected manifest version 1")
         if type(threshold) is not int or not 0 <= threshold <= 254:
             raise ValueError("alpha_threshold must be an integer from 0 to 254")
-        if not isinstance(frames, list) or len(frames) != FRAME_COUNT:
-            raise ValueError(f"expected {FRAME_COUNT} frame entries")
+        if not isinstance(frames, list) or len(frames) < MIN_FRAME_COUNT:
+            raise ValueError(f"expected at least {MIN_FRAME_COUNT} frame entries")
         paths, durations = [], []
         for index, frame in enumerate(frames, 1):
             if not isinstance(frame, dict):
@@ -61,8 +61,10 @@ def load_png(path, index, threshold):
 
 
 def import_pngs(paths, manifest, durations, threshold):
-    if len(paths) != FRAME_COUNT or len(durations) != FRAME_COUNT:
-        raise ValueError(f"expected exactly {FRAME_COUNT} PNGs and {FRAME_COUNT} frame delays")
+    if len(paths) < MIN_FRAME_COUNT:
+        raise ValueError(f"expected at least {MIN_FRAME_COUNT} PNGs")
+    if len(durations) != len(paths):
+        raise ValueError(f"expected {len(paths)} frame delays, got {len(durations)}")
     if not 0 <= threshold <= 254:
         raise ValueError("alpha_threshold must be an integer from 0 to 254")
     if manifest.exists() or manifest.is_symlink():
@@ -93,7 +95,9 @@ def encode_frame(frame, transparent):
     return indexed
 
 
-def inspect_gif(path, expected_durations=None, *, data=None):
+def inspect_gif(path, expected_durations=None, *, expected_frame_count=None, data=None):
+    if expected_frame_count is None and expected_durations is not None:
+        expected_frame_count = len(expected_durations)
     try:
         if data is None:
             data = path.read_bytes()
@@ -118,9 +122,11 @@ def inspect_gif(path, expected_durations=None, *, data=None):
     durations = [frame["duration_ms"] for frame in details]
     transparent = [frame["frame"] for frame in details if not frame["transparent_pixels"]]
     empty = [frame["frame"] for frame in details if not frame["opaque_pixels"]]
+    frame_count = len(frames)
     checks = {
         "canvas_240x240": (width, height) == CANVAS,
-        "exactly_12_frames": len(frames) == FRAME_COUNT,
+        "at_least_two_frames": frame_count >= MIN_FRAME_COUNT,
+        "matches_expected_frame_count": None if expected_frame_count is None else frame_count == expected_frame_count,
         "infinite_loop": loop == 0,
         "size_at_most_500000_bytes": len(data) <= MAX_BYTES,
         "transparent_background_each_frame": not transparent,
@@ -131,7 +137,8 @@ def inspect_gif(path, expected_durations=None, *, data=None):
     errors = []
     for key, detail in [
         ("canvas_240x240", f"expected 240×240, decoded {width}×{height}"),
-        ("exactly_12_frames", f"expected 12 frames, decoded {len(frames)}"),
+        ("at_least_two_frames", f"expected at least {MIN_FRAME_COUNT} frames, decoded {frame_count}"),
+        ("matches_expected_frame_count", f"expected {expected_frame_count} frames, decoded {frame_count}"),
         ("infinite_loop", f"expected loop=0; got {loop!r}"),
         ("size_at_most_500000_bytes", f"decoded file has {len(data)} bytes; limit is {MAX_BYTES}"),
         ("transparent_background_each_frame", f"no transparent pixels in frame(s) {transparent}"),
@@ -143,7 +150,8 @@ def inspect_gif(path, expected_durations=None, *, data=None):
             errors.append(detail)
     return {
         "path": str(path), "decoder": f"Pillow {pillow_version}", "sha256": hashlib.sha256(data).hexdigest(),
-        "size_bytes": len(data), "width": width, "height": height, "frame_count": len(frames),
+        "size_bytes": len(data), "width": width, "height": height, "frame_count": frame_count,
+        "expected_frame_count": expected_frame_count,
         "loop_count": loop, "durations_ms": durations, "expected_durations_ms": expected_durations,
         "total_duration_ms": sum(durations), "frames": details, "checks": checks,
         "strict_pass": not errors, "errors": errors,
@@ -220,15 +228,26 @@ def write_preview(path, source, frames, durations):
     return {"animation": str(path), "contact_sheet": str(sheet_path)}
 
 
+def frame_count_argument(value):
+    try:
+        count = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("frame count must be an integer") from exc
+    if count < MIN_FRAME_COUNT:
+        raise argparse.ArgumentTypeError(f"frame count must be at least {MIN_FRAME_COUNT}")
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     importer = sub.add_parser("import-png", help="verify ordered PNGs and create a manifest")
     importer.add_argument("manifest", type=Path)
     importer.add_argument("pngs", type=Path, nargs="+")
+    importer.add_argument("--frame-count", type=frame_count_argument, help="require this many input PNGs")
     timing = importer.add_mutually_exclusive_group()
     timing.add_argument("--duration-ms", type=int, default=80, help="same delay for all frames")
-    timing.add_argument("--durations-ms", help="comma-separated list of 12 delays")
+    timing.add_argument("--durations-ms", help="comma-separated list of one delay per PNG")
     importer.add_argument("--alpha-threshold", type=int, default=128)
     make = sub.add_parser("compose")
     make.add_argument("manifest", type=Path)
@@ -236,14 +255,18 @@ def main():
     make.add_argument("--replace", action="store_true")
     check = sub.add_parser("validate")
     check.add_argument("gif", type=Path)
-    check.add_argument("--manifest", type=Path)
+    expectation = check.add_mutually_exclusive_group()
+    expectation.add_argument("--manifest", type=Path, help="check frame count and timing against this manifest")
+    expectation.add_argument("--frame-count", type=frame_count_argument, help="require this many decoded frames")
     check.add_argument("--preview", type=Path, help="write an animated light/dark GIF and its PNG contact sheet")
     args = parser.parse_args()
     try:
         if args.command == "import-png":
+            if args.frame_count is not None and len(args.pngs) != args.frame_count:
+                raise ValueError(f"expected {args.frame_count} PNGs, got {len(args.pngs)}")
             try:
                 durations = ([int(value) for value in args.durations_ms.split(",")]
-                             if args.durations_ms is not None else [args.duration_ms] * FRAME_COUNT)
+                             if args.durations_ms is not None else [args.duration_ms] * len(args.pngs))
             except ValueError as exc:
                 raise ValueError("--durations-ms requires comma-separated integer milliseconds") from exc
             report = import_pngs(args.pngs, args.manifest, durations, args.alpha_threshold)
@@ -253,7 +276,7 @@ def main():
             report = compose(args.manifest, args.output, args.replace)
         else:
             durations = read_manifest(args.manifest)[1] if args.manifest else None
-            report, frames = inspect_gif(args.gif, durations)
+            report, frames = inspect_gif(args.gif, durations, expected_frame_count=args.frame_count)
             if args.preview:
                 report["preview"] = write_preview(args.preview, args.gif, frames, report["durations_ms"])
         print(json.dumps(report, ensure_ascii=False, indent=2))

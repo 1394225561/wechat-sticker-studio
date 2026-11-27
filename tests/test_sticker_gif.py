@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/sticker_gif.py"
@@ -94,14 +94,43 @@ class StickerGifTest(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(paths[0].read_bytes(), before)
 
-    def test_import_requires_twelve_inputs_and_delays(self):
+    def test_import_rejects_unmatched_input_counts_and_delays(self):
         output = self.folder / "新作品" / "sticker.json"
         paths = [self.folder / frame["path"] for frame in self.frames["frames"]]
-        result = self.cli("import-png", output, *paths[:-1], expected=1)
-        self.assertIn("exactly 12", result.stderr)
+        result = self.cli("import-png", output, *paths[:-1], "--frame-count", 12, expected=1)
+        self.assertIn("expected 12 PNGs, got 11", result.stderr)
         result = self.cli("import-png", output, *paths, "--durations-ms", "80,240", expected=1)
         self.assertIn("12 frame delays", result.stderr)
+        result = self.cli("import-png", output, paths[0], expected=1)
+        self.assertIn("at least 2 PNGs", result.stderr)
         self.assertFalse(output.exists())
+
+    def test_compose_and_validate_24_frames(self):
+        paths = []
+        for index in range(24):
+            path = self.folder / f"{index + 1:02}.png"
+            frame = Image.new("RGBA", (240, 240))
+            left = 20 + index * 5
+            ImageDraw.Draw(frame).rectangle((left, 90, left + 20, 110), fill="yellow")
+            frame.save(path)
+            paths.append(path)
+        manifest = self.folder / "二十四帧.json"
+        imported = json.loads(self.cli("import-png", manifest, *paths, "--duration-ms", 40).stdout)
+        self.assertEqual(imported["frame_count"], 24)
+        self.assertEqual(imported["durations_ms"], [40] * 24)
+        composed = json.loads(self.cli("compose", manifest, self.output).stdout)
+        self.assertTrue(composed["checks"]["matches_expected_frame_count"])
+        self.assertTrue(composed["checks"]["matches_thresholded_png_masks"])
+
+        report = self.validate("--manifest", manifest, "--preview", "二十四帧预览.gif")
+        self.assertEqual((report["frame_count"], report["expected_frame_count"]), (24, 24))
+        self.assertTrue(report["checks"]["matches_manifest_durations"])
+        with Image.open(self.folder / report["preview"]["animation"]) as preview:
+            self.assertEqual((preview.n_frames, preview.info["loop"]), (24, 0))
+        self.assertIsNone(self.validate()["checks"]["matches_expected_frame_count"])
+        self.assertTrue(self.validate("--frame-count", 24)["checks"]["matches_expected_frame_count"])
+        rejected = self.validate("--frame-count", 12, expected=1)
+        self.assertEqual(rejected["errors"], ["expected 12 frames, decoded 24"])
 
     def test_conflict_and_failed_replacement_keep_previous_output(self):
         self.compose()
