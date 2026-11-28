@@ -58,17 +58,17 @@ mkdir -p output/phase-c
 | 环境 | 已验证入口 |
 | --- | --- |
 | Apple Silicon macOS，Python 3.12.14 | 合成、逐帧解码、双底预览、投稿预检和组包 |
-| Codex | 宿主用参考图完成新角色表情 |
-| Claude Code 2.1.330 | 项目 Skill 的 PNG 导入 |
-| DeepSeek Harness | 项目 Skill 的 PNG 导入 |
+| Codex、Claude Code、DeepSeek Harness | 导入已有 PNG 帧并制作 GIF，通过自带生图服务从零制作 GIF |
 
 发布包含 [Apache-2.0 许可证](LICENSE)和[第三方声明](THIRD_PARTY_NOTICES.md)，涵盖项目代码、Skill 和原创机器人小样。
 
-## TODO 接入用户自带的生图服务
+## 用户自带生图服务与作品工作流
 
-给能运行本机命令、没有内置生图工具的 Agent 提供一个可选的生图命令。用户配置 `baseUrl` 和模型，命令在运行时从本机环境变量读取 API 密钥。密钥只用于向所配置服务鉴权，避免进入对话、项目文件和日志。
+`sticker_workflow.py` 初始化目录，按 `generated` 或 `imported` 计划接收素材，并复用 `sticker_gif.py` 的清单与编码验收逻辑。角色参考图通过单独审批后才能制作和审核关键帧，关键帧通过后才能补帧和构建。导入已有完整帧集合可离线完成。生图命令默认读取作品根目录的 `.config/image-service.json`，其中的 `profilePath` 可指向最近一次选用的自定义配置。显式 `--config` 仅覆盖本次生图。 [目录、命令与配置示例](skills/wechat-sticker-studio/references/workspace-workflow.md)
 
-首版接入一种支持文生图和参考图输入的接口协议。Agent 先写角色设定和动作关键姿势，再调用服务生成角色参考图，并将同一参考图用于后续动作帧。将返回的图整理为编号、对齐的 240 × 240 透明 PNG，交给现有的导入、合成和验收流程。验收目标是在一个没有内置生图工具的 Agent 中，从一句动作描述生成可解码的 GIF 和深浅底预览。
+`openai_images.py` 实现同步 JSON 文生图和 multipart 参考图编辑，接收图片 Base64 数据或下载 URL。URL 下载仅接受公网 HTTPS 443，通过已校验的 IP 连接并按原域名校验 TLS，拒绝重定向。扩展其他协议时，让新适配器把参数编码、鉴权和取回原图留在适配器内。作品目录、审批、帧整理及合成交给现有工作流。
+
+常规回归用模拟 HTTP 响应验证请求格式、审批条件、错误处理与最终 GIF。复测真实服务时，从一句动作描述开始，检查 Agent 是否分别等待角色参考图和关键帧获批、同一角色能否跨帧保持一致，以及成品是否通过解码和深浅底复核。工作流沿用项目现有的 Python 与 Pillow 依赖，提示词按 [角色与动作指南](skills/wechat-sticker-studio/references/character-motion.md) 编写。
 
 ## 维护者复测生产编码器
 
@@ -80,7 +80,7 @@ docker image inspect --format '{{.Id}} {{.Os}}/{{.Architecture}}' \
   sha256:4bfdd31f9c2b4b84e2d9efbf3e234331c6e2558ddee75ec44112645c374e64f4
 ```
 
-`compose-gif-mcp-app:latest` 是维护者的本机生产基准镜像。本仓库的发布包只提供本机 GIF 工具及小样。需要复测且本机缺少该镜像时，可向有权限的维护者取得该镜像的 `docker image save` 归档，用 `docker image load -i <归档路径>` 导入后再次核对镜像 ID。上游另有 `sprite-gen 3.15.0` 的源码，锁定提交为 `2e60c68b54c1008ee411c211f4dbe4dddcf55016`，固定镜像还包含 Pillow 12.3.0 和生产构建环境。 [Docker 镜像导出](https://docs.docker.com/reference/cli/docker/image/save/) · [Docker 镜像导入](https://docs.docker.com/reference/cli/docker/image/load/) · [sprite-gen 3.15.0 源码](https://github.com/aldegad/sprite-gen/releases/tag/v3.15.0)
+`compose-gif-mcp-app:latest` 是维护者的本机生产基准镜像。需要复测且本机缺少该镜像时，可向有权限的维护者取得该镜像的 `docker image save` 归档，用 `docker image load -i <归档路径>` 导入后再次核对镜像 ID。上游另有 `sprite-gen 3.15.0` 的源码，锁定提交为 `2e60c68b54c1008ee411c211f4dbe4dddcf55016`，固定镜像还包含 Pillow 12.3.0 和生产构建环境。 [Docker 镜像导出](https://docs.docker.com/reference/cli/docker/image/save/) · [Docker 镜像导入](https://docs.docker.com/reference/cli/docker/image/load/) · [sprite-gen 3.15.0 源码](https://github.com/aldegad/sprite-gen/releases/tag/v3.15.0)
 
 先按本页生成 `output/phase-a/wave.gif` 并设置 `py`。生产服务经由 `--frame-dir` 和一基序号 `--frame-order` 接入相同 CLI。下面将第 5 帧引用三次，观察成品解码后是否合并为一帧并累加时长。容器离线运行，绑定的输入目录为只读。
 

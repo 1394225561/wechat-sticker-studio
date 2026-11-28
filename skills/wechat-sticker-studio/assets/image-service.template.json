@@ -1,0 +1,18 @@
+{
+  "adapter": "openai-images",
+  "baseUrl": null,
+  "model": null,
+  "apiKeyEnv": null,
+  "referenceImages": null,
+  "transparentBackground": null,
+  "profilePath": null,
+  "_help": {
+    "adapter": "服务协议。首版使用 openai-images，对应同步 OpenAI Images 接口。",
+    "baseUrl": "服务的 API 基础地址，包含前缀，例如 https://image.example.com/v1。",
+    "model": "服务文档或控制台中显示的模型 ID。",
+    "apiKeyEnv": "本机密钥环境变量名，例如 STICKER_IMAGE_API_KEY。密钥值只在本机终端输入。",
+    "referenceImages": "模型接受的参考图上限，填写 0 到 16 的整数。仅文生图填 0。",
+    "transparentBackground": "模型是否支持请求透明背景。支持填 true，否则填 false。",
+    "profilePath": "最近一次选用的自定义配置文件。相对路径以作品根目录为准。填 null 时使用本文件的服务设置。"
+  }
+}

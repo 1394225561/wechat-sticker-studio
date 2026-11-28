@@ -15,8 +15,10 @@ NOTICES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
 SKILL_FILES = (
     "SKILL.md", "requirements.txt",
     "scripts/check_environment.py", "scripts/sticker_gif.py", "scripts/pack_submission.py",
+    "scripts/sticker_workflow.py", "scripts/openai_images.py",
     "references/character-motion.md", "references/png-workflow.md", "references/submission.md",
-    "assets/sticker.template.json", "assets/single-submission.template.json",
+    "references/workspace-workflow.md",
+    "assets/sticker.template.json", "assets/image-service.template.json", "assets/single-submission.template.json",
     "assets/album-submission.template.json",
 )
 DEMO_FILES = (
@@ -27,6 +29,7 @@ SOURCE_FILES = (
     ".gitignore", "README.md", "README.developer.md", "requirements.txt", *NOTICES,
     "scripts/sticker_gif.py", "scripts/pack_submission.py", "scripts/compare_gifs.py",
     "scripts/build_release.py", "tests/test_sticker_gif.py", "tests/test_pack_submission.py",
+    "tests/test_sticker_workflow.py",
     *(str(SKILL_ROOT / name) for name in SKILL_FILES), *DEMO_FILES,
 )
 SKILL_QUICKSTART = r"""# 运行小样
@@ -49,7 +52,7 @@ mkdir -p output/phase-a output/phase-c
 ```
 
 成品为透明、无限循环的 240 × 240 GIF，共 12 帧，含一次 240 毫秒停顿。
-制作自己的表情时，可以按动作选择帧数。 [PNG 导入与导出](references/png-workflow.md)
+制作自己的表情时，可以按动作选择帧数。 [作品目录、关键帧审核与生图服务](references/workspace-workflow.md) · [PNG 导入与导出](references/png-workflow.md)
 自检输出 `"ok": true` 表示当前解释器及 Pillow 符合项目的环境要求。
 投稿预检使用 2026-10-28 保存的微信官方快照。
 
